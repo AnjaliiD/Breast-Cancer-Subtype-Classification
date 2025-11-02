@@ -3,8 +3,7 @@ import torch.nn as nn
 from PIL import Image
 from torchvision import transforms
 from transformers import AutoModel
-import pandas as pd
-import numpy as np
+from huggingface_hub import hf_hub_download
 
 class DinoMLPFusion(nn.Module):
     def __init__(self, num_classes, bio_dim):
@@ -30,13 +29,12 @@ class DinoMLPFusion(nn.Module):
 
 # Biomarker encoding setup
 BIOMARKERS = ['BRCA1', 'CDH1', 'EGFR', 'ERBB2', 'ESR1', 'Ki-67', 'MKI67', 'PGR', 'PTEN', 'RB1', 'SNAI', 'SNAI1', 'TP53']
-INTENSITIES = ['Moderate', 'Negative', 'Not detected', 'Strong', 'Weak']
-STAININGS = ['High', 'Low', 'Medium', 'Not detected']
+INTENSITIES = ['Moderate', 'Moderate ', 'Negative', 'Negative ', 'Not detected', 'Strong', 'Strong ', 'Weak']
+STAININGS = ['High', 'Low', 'Medium', 'Medium ', 'Not detected']
 SUBTYPES = ['IDC', 'ILC', 'MBC', 'TNBC']
 
 def encode_biomarkers(biomarker, intensity, staining):
     """Encode biomarker information into one-hot vector"""
-    # Create feature dict
     features = {}
     
     # Biomarker one-hot
@@ -55,24 +53,23 @@ def encode_biomarkers(biomarker, intensity, staining):
     feature_vector = torch.tensor(list(features.values()), dtype=torch.float32)
     return feature_vector
 
-def load_model(model_path='dino_model.pth', device='cuda', from_hub=False, repo_id=None):
+def load_model(model_path=None, device='cuda', from_hub=True, repo_id="AnjaliiD/breast-cancer-dino"):
     """
     Load trained model
     
     Args:
-        model_path: Local path to model file
+        model_path: Local path to model file (if from_hub=False)
         device: 'cuda' or 'cpu'
         from_hub: If True, download from Hugging Face Hub
-        repo_id: Hugging Face repository ID (e.g., 'username/breast-cancer-dino')
+        repo_id: Hugging Face repository ID
     """
     # Download from Hugging Face if requested
     if from_hub:
-        if repo_id is None:
-            raise ValueError("repo_id must be provided when from_hub=True")
         print(f"Downloading model from Hugging Face: {repo_id}")
-        from huggingface_hub import hf_hub_download
         model_path = hf_hub_download(repo_id=repo_id, filename="dino_model.pth")
         print(f"Model downloaded to: {model_path}")
+    elif model_path is None:
+        raise ValueError("model_path must be provided when from_hub=False")
     
     # Calculate bio_dim based on encoding
     bio_dim = len(BIOMARKERS) + len(INTENSITIES) + len(STAININGS)
@@ -96,10 +93,11 @@ def preprocess_image(image_path):
     ])
     
     img = Image.open(image_path).convert('RGB')
-    img_tensor = transform(img).unsqueeze(0)  # Add batch dimension
+    img_tensor = transform(img).unsqueeze(0)
     return img_tensor
 
-def predict_image(image_path, biomarker, intensity, staining, model_path='dino_model.pth'):
+def predict_image(image_path, biomarker, intensity, staining, 
+                  model_path=None, from_hub=True, repo_id="AnjaliiD/breast-cancer-dino"):
     """
     Predict breast cancer subtype from image and biomarker data
     
@@ -108,13 +106,15 @@ def predict_image(image_path, biomarker, intensity, staining, model_path='dino_m
         biomarker: Biomarker name (e.g., 'Ki-67')
         intensity: Intensity level (e.g., 'Strong', 'Moderate')
         staining: Staining pattern (e.g., 'High', 'Medium')
-        model_path: Path to trained model weights
+        model_path: Path to trained model weights (if from_hub=False)
+        from_hub: If True, download model from Hugging Face Hub
+        repo_id: Hugging Face repo ID
     
     Returns:
         dict with prediction results
     """
     # Load model
-    model, device = load_model(model_path)
+    model, device = load_model(model_path, from_hub=from_hub, repo_id=repo_id)
     
     # Preprocess inputs
     img_tensor = preprocess_image(image_path).to(device)
@@ -140,11 +140,12 @@ if __name__ == '__main__':
     import argparse
     
     parser = argparse.ArgumentParser(description='Breast Cancer Subtype Classification')
-    parser.add_argument('--image', type=str, required=True, help='Path to image')
+    parser.add_argument('--image', type=str, required=True, help='Path to histopathology image')
     parser.add_argument('--biomarker', type=str, required=True, help='Biomarker name')
     parser.add_argument('--intensity', type=str, required=True, help='Intensity level')
     parser.add_argument('--staining', type=str, required=True, help='Staining pattern')
-    parser.add_argument('--model', type=str, default='dino_model.pth', help='Model path')
+    parser.add_argument('--model', type=str, default=None, help='Local model path (optional)')
+    parser.add_argument('--local', action='store_true', help='Use local model instead of downloading from Hub')
     
     args = parser.parse_args()
     
@@ -153,10 +154,11 @@ if __name__ == '__main__':
         biomarker=args.biomarker,
         intensity=args.intensity,
         staining=args.staining,
-        model_path=args.model
+        model_path=args.model,
+        from_hub=not args.local
     )
     
-    print(f"\nPrediction Results:")
+    print("\nPrediction Results:")
     print(f"Predicted Subtype: {result['subtype']}")
     print(f"Confidence: {result['confidence']:.4f}")
     print(f"\nAll Probabilities:")
