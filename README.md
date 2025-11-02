@@ -174,8 +174,9 @@ See `requirements.txt` for full dependencies. Key packages:
 ├── notebook.ipynb          # Training notebook
 ├── predict.py              # Inference script
 ├── requirements.txt        # Python dependencies
-├── .gitignore             # Git ignore rules
-└── README.md              # This file
+├── .gitignore              # Git ignore rules
+├── LICENSE                 # MIT License
+└── README.md               # Project Documentation
 ```
 
 ## License
