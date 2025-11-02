@@ -1,82 +1,43 @@
-# Breast Cancer Subtype Classification using ViT-DINO and Biomarkers
+# Breast Cancer Subtype Classification using ViT-DINO
 
-A deep learning project for classifying breast cancer subtypes (TNBC, IDC, MBC, ILC) using histopathology images and biomarker data.
+A multimodal deep learning model for classifying breast cancer subtypes using histopathology images and biomarker data.
 
 ## Overview
 
-This project implements a multimodal fusion approach combining:
+This project implements a fusion approach combining:
 - Vision Transformer (ViT-DINO) pretrained on TCGA-BRCA dataset for image feature extraction
-- Biomarker data (biomarker type, intensity, staining) processed through a projection network
-- MLP fusion head for final classification
-
-## Model Architecture
-
-The model consists of three main components:
-
-1. **Image Encoder**: `1aurent/vit_small_patch16_256.tcga_brca_dino` (frozen backbone)
-2. **Biomarker Encoder**: Linear projection layer (128 dimensions)
-3. **Fusion Head**: 2-layer MLP with ReLU and Dropout (0.3)
+- Biomarker encoder for processing molecular markers (type, intensity, staining)
+- MLP fusion head for final classification into 4 breast cancer subtypes
 
 ## Results
 
-Best validation accuracy: **67.24%** (Epoch 15)
-
 | Metric | Value |
 |--------|-------|
-| Val Accuracy | 67.24% |
-| Val Loss | 0.8478 |
-| Train Accuracy | 71.69% |
-| Train Loss | 0.7337 |
+| Validation Accuracy | 67.24% |
+| Training Accuracy | 71.69% |
+| Dataset Size | 600 images |
+| Classes | 4 subtypes |
 
-## Dataset
+### Breast Cancer Subtypes
+- **TNBC**: Triple-Negative Breast Cancer
+- **IDC**: Invasive Ductal Carcinoma  
+- **MBC**: Medullary Breast Cancer
+- **ILC**: Invasive Lobular Carcinoma
 
-The dataset contains:
-- 600 histopathology images from 4 breast cancer subtypes
-- Biomarker information: type, intensity, and staining patterns
-- Train/Test split: ~480/120 samples
+## Quick Start
 
-### Subtypes
-- **TNBC**: Triple-Negative Breast Cancer (151 samples)
-- **IDC**: Invasive Ductal Carcinoma (150 samples)
-- **MBC**: Medullary Breast Cancer (150 samples)
-- **ILC**: Invasive Lobular Carcinoma (149 samples)
-
-## Installation
+### Installation
 
 ```bash
 git clone https://github.com/AnjaliiD/Breast-Cancer-Subtype-Classification.git
 cd Breast-Cancer-Subtype-Classification
 pip install -r requirements.txt
-python predict.py --image path/to/image.jpg --biomarker Ki-67 --intensity Strong --staining High
 ```
 
-## Usage
+### Download Model Weights
 
-### Training
+The trained model is hosted on Hugging Face Hub:
 
-```python
-# See the Jupyter notebook for full training pipeline
-jupyter notebook notebook.ipynb
-```
-
-### Inference
-
-```python
-from predict import predict_image
-
-# Predict single image
-result = predict_image(
-    image_path="path/to/image.jpg",
-    biomarker="Ki-67",
-    intensity="Strong",
-    staining="High"
-)
-print(f"Predicted subtype: {result['subtype']}")
-```
-
-## Model Weights
-
-Download from Hugging Face:
 ```python
 from huggingface_hub import hf_hub_download
 
@@ -86,45 +47,154 @@ model_path = hf_hub_download(
 )
 ```
 
-Or direct download: https://huggingface.co/AnjaliiD/breast-cancer-dino/resolve/main/dino_model.pth
+Direct download: https://huggingface.co/AnjaliiD/breast-cancer-dino/resolve/main/dino_model.pth
+
+### Usage
+
+#### Training Notebook
+```bash
+jupyter notebook notebook.ipynb
+```
+
+#### Inference Script
+
+```bash
+python predict.py \
+    --image path/to/image.jpg \
+    --biomarker Ki-67 \
+    --intensity Strong \
+    --staining High
+```
+
+Or use in Python:
+
+```python
+from predict import predict_image
+
+result = predict_image(
+    image_path="path/to/image.jpg",
+    biomarker="Ki-67",
+    intensity="Strong",
+    staining="High"
+)
+
+print(f"Predicted Subtype: {result['subtype']}")
+print(f"Confidence: {result['confidence']:.2%}")
+```
+
+## Model Architecture
+
+```
+Input Image (224x224)
+    |
+ViT-DINO Encoder (frozen)
+    |
+Image Features (384-dim)
+    |                    <- Biomarker Features (26-dim)
+    +-------- Concatenate --------+
+              |
+         MLP Head (256-dim)
+              |
+         4 Classes (TNBC, IDC, MBC, ILC)
+```
+
+### Components
+- **Backbone**: `1aurent/vit_small_patch16_256.tcga_brca_dino` (frozen)
+- **Biomarker Projection**: Linear layer (26 → 128 dim)
+- **Classifier**: 2-layer MLP with ReLU and Dropout (0.3)
+
+## Dataset
+
+**Source**: Breast Cancer Detection dataset from Kaggle
+
+### Structure
+- **Total Images**: 600 histopathology images
+- **Image Format**: JPEG (resized to 224×224)
+- **Metadata**: CSV with biomarker information
+
+### Biomarkers (13 types)
+BRCA1, CDH1, EGFR, ERBB2, ESR1, Ki-67, MKI67, PGR, PTEN, RB1, SNAI, SNAI1, TP53
+
+### Class Distribution
+| Subtype | Count |
+|---------|-------|
+| TNBC    | 151   |
+| IDC     | 150   |
+| MBC     | 150   |
+| ILC     | 149   |
+
+## Training Details
+
+- **Framework**: PyTorch 2.0+
+- **Optimizer**: AdamW (learning rate: 1e-4)
+- **Loss Function**: CrossEntropyLoss
+- **Batch Size**: 16
+- **Epochs**: 15
+- **GPU**: NVIDIA Tesla T4
+- **Training Time**: ~50 minutes per epoch
+
+## Methodology
+
+### Data Preprocessing
+1. Remove null values in intensity/staining fields
+2. Stratified train/test split by subtype
+3. One-hot encoding for categorical biomarker features
+
+### Image Preprocessing
+1. Resize to 224×224 pixels
+2. Normalize with ImageNet statistics (mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+3. Convert to RGB format
+
+### Model Training
+1. Freeze ViT-DINO backbone weights
+2. Train only fusion head and biomarker encoder
+3. Monitor validation accuracy for best model selection
+
+## Training Progress
+
+| Epoch | Train Acc | Train Loss | Val Acc | Val Loss |
+|-------|-----------|------------|---------|----------|
+| 1     | 68.60%    | 0.7941     | 61.21%  | 0.9113   |
+| 3     | 72.93%    | 0.7484     | 66.38%  | 0.8731   |
+| 5     | 71.69%    | 0.7337     | 67.24%  | 0.8478   |
 
 ## Requirements
 
-- Python 3.11+
-- PyTorch 2.0+
-- transformers
-- torchvision
-- pandas
-- numpy
-- Pillow
-- scikit-learn
-- tqdm
+See `requirements.txt` for full dependencies. Key packages:
+- torch >= 2.0.0
+- torchvision >= 0.15.0
+- transformers >= 4.30.0
+- huggingface_hub
+- numpy, pandas, scikit-learn, Pillow
 
 ## Project Structure
 
 ```
-├── dino_model.pth            
-├── notebook.ipynb  
-├── upload_model.py          
-├── README.md              
-├── requirements.txt            
-└── .gitignore                  
+.
+├── notebook.ipynb          # Training notebook
+├── predict.py              # Inference script
+├── requirements.txt        # Python dependencies
+├── .gitignore             # Git ignore rules
+└── README.md              # This file
 ```
 
-## Training Details
+## License
 
-- **Optimizer**: AdamW (lr=1e-4)
-- **Loss**: CrossEntropyLoss
-- **Batch Size**: 16
-- **Epochs**: 15
-- **Image Size**: 224×224
-- **Normalization**: ImageNet statistics
+This project is open source and available under the MIT License.
 
-## Biomarkers Used
+## Acknowledgments
 
-The model processes the following biomarkers:
-- BRCA1, CDH1, EGFR, ERBB2, ESR1, Ki-67, MKI67, PGR, PTEN, RB1, SNAI, SNAI1, TP53
+- ViT-DINO pretrained model from [1aurent/vit_small_patch16_256.tcga_brca_dino](https://huggingface.co/1aurent/vit_small_patch16_256.tcga_brca_dino)
+- Breast Cancer Detection dataset from Kaggle
 
 ## Contact
 
-For questions or collaboration: anjalidesai0111@gmail.com
+**Anjali D**
+- Email: anjalidesai0111@gmail.com
+- GitHub: [@AnjaliiD](https://github.com/AnjaliiD)
+- Hugging Face: [@AnjaliiD](https://huggingface.co/AnjaliiD)
+
+## Links
+
+- **Model on Hugging Face**: https://huggingface.co/AnjaliiD/breast-cancer-dino
+- **Training Notebook**: [notebook.ipynb](notebook.ipynb)
