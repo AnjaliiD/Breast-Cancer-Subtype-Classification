@@ -1,5 +1,30 @@
-*.pth
-*.pyc
+# Python
 __pycache__/
+*.py[cod]
+*.pyc
+.Python
+
+# Jupyter Notebook
 .ipynb_checkpoints/
+
+# Models (already on Hugging Face)
+*.pth
+*.pt
+
+# Data files
 data/
+*.csv
+*.jpg
+*.png
+
+# Virtual Environment
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
