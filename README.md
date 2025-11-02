@@ -180,7 +180,7 @@ See `requirements.txt` for full dependencies. Key packages:
 
 ## License
 
-This project is open source and available under the MIT License.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Acknowledgments
 
