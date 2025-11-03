@@ -90,7 +90,7 @@ Input Image (224x224)
 ViT-DINO Encoder (frozen)
     |
 Image Features (384-dim)
-    |                    <- Biomarker Features (26-dim)
+    |                    <- Biomarker Features (22-dim)
     +-------- Concatenate --------+
               |
          MLP Head (256-dim)
